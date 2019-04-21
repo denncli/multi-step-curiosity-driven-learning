@@ -186,8 +186,8 @@ def add_optimization_params(parser):
     parser.add_argument('--ent_coeff', type=float, default=0.001)
     parser.add_argument('--nepochs', type=int, default=3)
     parser.add_argument('--num_timesteps', type=int, default=int(1e6))
-    parser.add_argument('--loss_scaler', type=float, default=1.)
-    parser.add_argument('--loss_scaler_t1', type=float, default=1.)
+    parser.add_argument('--loss_scaler', type=float, default=1.) # Scale factor for t2 loss
+    parser.add_argument('--loss_scaler_t1', type=float, default=1.) # Scale factor for t1 loss
 
 
 def add_rollout_params(parser):
