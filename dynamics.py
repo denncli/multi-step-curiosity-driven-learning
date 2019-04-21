@@ -101,7 +101,7 @@ class Dynamics(object):
         avg_loss2 = np.sum(loss2, axis=0)/len(loss2)
         loss2.append(avg_loss2)
         loss_final = [loss1[i][0] + loss2[i] for i in range(n_chunks)]
-        self.buff_preds = loss1[-1][1]
+        self.buff_preds = [loss1[i][2] for i in range(n_chunks)]
         return np.concatenate(loss_final, 0)
 
 
