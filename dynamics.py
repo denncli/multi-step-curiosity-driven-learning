@@ -6,7 +6,7 @@ from utils import small_convnet, flatten_two_dims, unflatten_first_dim, getsess,
 
 
 class Dynamics(object):
-    def __init__(self, auxiliary_task, predict_from_pixels,loss_scaler, feat_dim=None, scope='dynamics'):
+    def __init__(self, auxiliary_task, predict_from_pixels,loss_scaler_t1, loss_scaler, feat_dim=None, scope='dynamics'):
         self.scope = scope
         self.auxiliary_task = auxiliary_task
         self.hidsize = self.auxiliary_task.hidsize
@@ -23,6 +23,7 @@ class Dynamics(object):
         self.first_pred = None
         self.first_pred_flat = None
         self.scaler = loss_scaler
+        self.scaler_t1 = loss_scaler_t1
 
         if predict_from_pixels:
             self.features = self.get_features(self.obs, reuse=False)
@@ -101,17 +102,18 @@ class Dynamics(object):
                                  self.extracted_features: loss1[i-1][2]}) for i in range(1, n_chunks)]
         avg_loss2 = np.sum(loss2, axis=0)/len(loss2)
         loss2.append(avg_loss2)
-        loss_final = [loss1[i][0] + (self.scaler*loss2[i]) for i in range(n_chunks)]
+        loss_final = [(self.scaler_t1*loss1[i][0]) + (self.scaler*loss2[i]) for i in range(n_chunks)]
         self.buff_preds = [loss1[i][2] for i in range(n_chunks)]
         return np.concatenate(loss_final, 0)
 
 
 class UNet(Dynamics):
-    def __init__(self, auxiliary_task, predict_from_pixels,loss_scaler, feat_dim=None, scope='pixel_dynamics'):
+    def __init__(self, auxiliary_task, predict_from_pixels,loss_scaler_t1, loss_scaler, feat_dim=None, scope='pixel_dynamics'):
         assert isinstance(auxiliary_task, JustPixels)
         assert not predict_from_pixels, "predict from pixels must be False, it's set up to predict from features that are normalized pixels."
         super(UNet, self).__init__(auxiliary_task=auxiliary_task,
                                    predict_from_pixels=predict_from_pixels,
+                                   loss_scaler_t1=loss_scaler_t1,
                                    loss_scaler=loss_scaler,
                                    feat_dim=feat_dim,
                                    scope=scope)

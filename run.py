@@ -69,6 +69,7 @@ class Trainer(object):
         self.dynamics = Dynamics if hps['feat_learning'] != 'pix2pix' else UNet
         self.dynamics = self.dynamics(auxiliary_task=self.feature_extractor,
                                       predict_from_pixels=hps['dyn_from_pixels'],
+                                      loss_scaler_t1=hps['loss_scaler_t1'],
                                       loss_scaler=hps['loss_scaler'],
                                       feat_dim=512)
 
@@ -186,6 +187,7 @@ def add_optimization_params(parser):
     parser.add_argument('--nepochs', type=int, default=3)
     parser.add_argument('--num_timesteps', type=int, default=int(1e6))
     parser.add_argument('--loss_scaler', type=float, default=1.)
+    parser.add_argument('--loss_scaler_t1', type=float, default=1.)
 
 
 def add_rollout_params(parser):
