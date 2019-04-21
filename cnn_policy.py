@@ -55,7 +55,8 @@ class CnnPolicy(object):
         with tf.variable_scope(self.scope):
             shaped = tf.shape(self.ph_ob)
             flat = flatten_two_dims(self.ph_ob)
-            pdparam = self.get_pdparam(flat)
+            features = self.dynamics.auxiliary_task.get_features(flat, reuse=tf.AUTO_REUSE)
+            pdparam = self.get_pdparam(features, False)
             pdparam = unflatten_first_dim(pdparam, shaped)
             self.pd = pd = self.ac_pdtype.pdfromflat(pdparam)
             self.a_samp = pd.sample()
@@ -63,15 +64,15 @@ class CnnPolicy(object):
             self.nlp_samp = pd.neglogp(self.a_samp)
 
             '''Alternate ac for forward dynamics'''
-            pdparam_alt = self.get_pdparam(self.extracted_features)
+            pdparam_alt = self.get_pdparam(self.extracted_features, True)
             pdparam_alt = unflatten_first_dim(pdparam_alt, shaped)
             self.a_samp_alt = self.ac_pdtype.pdfromflat(pdparam_alt).sample()
 
-    def get_pdparam(self, features):
+    def get_pdparam(self, features, reuse):
         with tf.variable_scope(self.scope, reuse=False):
             x = fc(features, units=self.hidsize, activation=activ, reuse=True)
             x = fc(x, units=self.hidsize, activation=activ, reuse=True)
-            pdparam = fc(x, name='pd', units=self.pdparamsize, activation=None)
+            pdparam = fc(x, name='pd', units=self.pdparamsize, activation=None, reuse=reuse)
         return pdparam
 
     def get_features(self, x, reuse):

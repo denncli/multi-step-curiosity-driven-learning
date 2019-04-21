@@ -177,6 +177,7 @@ class PpoOptimizer(object):
             (self.ph_oldnlp, resh(self.rollout.buf_nlps)),
             (self.stochpol.ph_ob, resh(self.rollout.buf_obs)),
             (self.ph_ret, resh(self.buf_rets)),
+            (self.stochpol.extracted_features, self.dynamics.buff_preds),
             (self.ph_adv, resh(self.buf_advs)),
         ]
         ph_buf.extend([

@@ -19,6 +19,7 @@ class Dynamics(object):
         self.ob_mean = self.auxiliary_task.ob_mean
         self.ob_std = self.auxiliary_task.ob_std
 
+        self.buff_preds = None
         self.first_pred = None
         self.first_pred_flat = None
 
@@ -100,6 +101,7 @@ class Dynamics(object):
         avg_loss2 = np.sum(loss2, axis=0)/len(loss2)
         loss2.append(avg_loss2)
         loss_final = [loss1[i][0] + loss2[i] for i in range(n_chunks)]
+        self.buff_preds = loss1[-1][1]
         return np.concatenate(loss_final, 0)
 
 
