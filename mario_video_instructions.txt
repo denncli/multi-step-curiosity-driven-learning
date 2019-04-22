@@ -1,0 +1,14 @@
+Mario_video_instructions
+
+After running the code to train the mario environment, you will get .bk2 files/
+
+If they are not in a folder already, you can put all those files in a separate folder 
+and run the following command 
+
+python3 ./scripts/convertbk2-mp4.py ./results/bk2/SuperMarioBros-Nes-Level1-1-xxxxxx.bk2 
+
+to convert just one file into mp4
+
+If you want to conver all the files to mp4, run the command
+
+python3 -m retro.scripts.playback_movie ./results/bk2/SuperMarioBros-Nes-Level1-1-xxxxxx.bk2
