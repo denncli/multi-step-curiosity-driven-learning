@@ -6,7 +6,7 @@ from utils import small_convnet, flatten_two_dims, unflatten_first_dim, getsess,
 
 
 class Dynamics(object):
-    def __init__(self, auxiliary_task, predict_from_pixels, loss_scaler_t1, pred_discount, num_preds, feat_dim=None, scope='dynamics'):
+    def __init__(self, auxiliary_task, predict_from_pixels, pred_discount, num_preds, feat_dim=None, scope='dynamics'):
         self.scope = scope
         self.auxiliary_task = auxiliary_task
         self.hidsize = self.auxiliary_task.hidsize
@@ -25,7 +25,6 @@ class Dynamics(object):
         self.next_pred = None
         self.next_pred_flat = None
         self.pred_discount = pred_discount
-        self.scaler_t1 = loss_scaler_t1
         self.num_preds = num_preds
         if self.num_preds > 7:      # Currently only supports 7 step predictions, due to rollout configuration
             self.num_preds = 7
@@ -100,16 +99,17 @@ class Dynamics(object):
         chunk_size = n // n_chunks
         assert n % n_chunks == 0
         sli = lambda i: slice(i * chunk_size, (i + 1) * chunk_size)
-        loss1, pred, pred_flat = [getsess().run([self.loss1, self.first_pred, self.first_pred_flat],
+        result = [getsess().run([self.loss1, self.first_pred, self.first_pred_flat],
                                {self.obs: ob[sli(i)], self.last_ob: last_ob[sli(i)],
                                self.ac: acs[sli(i)]}) for i in range(n_chunks)]
-        self.buff_preds = [pred_flat[i] for i in range(n_chunks)]
-        loss_total = loss1
+        self.buff_preds = [result[i][2] for i in range(n_chunks)]
+        loss_total = [result[i][0] for i in range(n_chunks)]
         discount = self.pred_discount
         for p in range(self.num_preds):
-            loss2, pred, pred_flat = [getsess().run([self.loss2, self.next_pred, self.next_pred_flat],
-                                   {self.obs: ob[sli(i)], self.last_ob: last_ob[sli(i)], self.features: pred[i-1-p],
-                                     self.extracted_features: pred_flat[i-1-p]}) for i in range(1, n_chunks)]
+            result = [getsess().run([self.loss2, self.next_pred, self.next_pred_flat],
+                                   {self.obs: ob[sli(i)], self.last_ob: last_ob[sli(i)], self.features: result[i-1-p][1],
+                                     self.extracted_features: result[i-1-p][2]}) for i in range(1, n_chunks)]
+            loss2 = [result[i][0] for i in range(n_chunks)]
             avg_loss2 = np.sum(loss2, axis=0)/len(loss2)
             for q in range(p+1):
                 loss2.append(avg_loss2)
