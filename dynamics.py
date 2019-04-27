@@ -6,7 +6,7 @@ from utils import small_convnet, flatten_two_dims, unflatten_first_dim, getsess,
 
 
 class Dynamics(object):
-    def __init__(self, auxiliary_task, predict_from_pixels,loss_scaler_t1, loss_scaler, feat_dim=None, scope='dynamics'):
+    def __init__(self, auxiliary_task, predict_from_pixels, loss_scaler_t1, pred_discount, num_preds, feat_dim=None, scope='dynamics'):
         self.scope = scope
         self.auxiliary_task = auxiliary_task
         self.hidsize = self.auxiliary_task.hidsize
@@ -22,8 +22,11 @@ class Dynamics(object):
         self.buff_preds = None
         self.first_pred = None
         self.first_pred_flat = None
-        self.scaler = loss_scaler
+        self.next_pred = None
+        self.next_pred_flat = None
+        self.pred_discount = pred_discount
         self.scaler_t1 = loss_scaler_t1
+        self.num_preds = num_preds
 
         if predict_from_pixels:
             self.features = self.get_features(self.obs, reuse=False)
@@ -84,8 +87,9 @@ class Dynamics(object):
 
     def get_loss_t2(self):
         ac = tf.one_hot(self.auxiliary_task.policy.a_samp_alt, self.ac_space.n, axis=2)
-        result = self.get_loss(ac)
-        return tf.reduce_mean((result - tf.stop_gradient(self.out_features)) ** 2, -1)
+        self.next_pred = self.get_loss(ac)
+        self.next_pred_flat = flatten_two_dims(self.next_pred)
+        return tf.reduce_mean((self.next_pred - tf.stop_gradient(self.out_features)) ** 2, -1)
 
 
     def calculate_loss(self, ob, last_ob, acs):
@@ -94,27 +98,31 @@ class Dynamics(object):
         chunk_size = n // n_chunks
         assert n % n_chunks == 0
         sli = lambda i: slice(i * chunk_size, (i + 1) * chunk_size)
-        loss1 = [getsess().run([self.loss1, self.first_pred, self.first_pred_flat],
+        loss1, pred, pred_flat = [getsess().run([self.loss1, self.first_pred, self.first_pred_flat],
                                {self.obs: ob[sli(i)], self.last_ob: last_ob[sli(i)],
                                self.ac: acs[sli(i)]}) for i in range(n_chunks)]
-        loss2 = [getsess().run(self.loss2,
-                               {self.obs: ob[sli(i)], self.last_ob: last_ob[sli(i)], self.features: loss1[i-1][1],
-                                 self.extracted_features: loss1[i-1][2]}) for i in range(1, n_chunks)]
-        avg_loss2 = np.sum(loss2, axis=0)/len(loss2)
-        loss2.append(avg_loss2)
-        loss_final = [(self.scaler_t1*loss1[i][0]) + (self.scaler*loss2[i]) for i in range(n_chunks)]
-        self.buff_preds = [loss1[i][2] for i in range(n_chunks)]
-        return np.concatenate(loss_final, 0)
+        self.buff_preds = [pred_flat[i] for i in range(n_chunks)]
+        loss_total = loss1
+        discount = self.pred_discount
+        for p in range(self.num_preds):
+            loss2, pred, pred_flat = [getsess().run([self.loss2, self.next_pred, self.next_pred_flat],
+                                   {self.obs: ob[sli(i)], self.last_ob: last_ob[sli(i)], self.features: pred[i-1-p],
+                                     self.extracted_features: pred_flat[i-1-p]}) for i in range(1, n_chunks)]
+            avg_loss2 = np.sum(loss2, axis=0)/len(loss2)
+            for q in range(p+1):
+                loss2.append(avg_loss2)
+            loss_total = [loss_total[i] + (discount * loss2[i]) for i in range(n_chunks)]
+        return np.concatenate(loss_total, 0)
 
 
 class UNet(Dynamics):
-    def __init__(self, auxiliary_task, predict_from_pixels,loss_scaler_t1, loss_scaler, feat_dim=None, scope='pixel_dynamics'):
+    def __init__(self, auxiliary_task, predict_from_pixels, loss_scaler_t1, pred_discount, feat_dim=None, scope='pixel_dynamics'):
         assert isinstance(auxiliary_task, JustPixels)
         assert not predict_from_pixels, "predict from pixels must be False, it's set up to predict from features that are normalized pixels."
         super(UNet, self).__init__(auxiliary_task=auxiliary_task,
                                    predict_from_pixels=predict_from_pixels,
                                    loss_scaler_t1=loss_scaler_t1,
-                                   loss_scaler=loss_scaler,
+                                   pred_discount=pred_discount,
                                    feat_dim=feat_dim,
                                    scope=scope)
 
