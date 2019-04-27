@@ -27,6 +27,8 @@ class Dynamics(object):
         self.pred_discount = pred_discount
         self.scaler_t1 = loss_scaler_t1
         self.num_preds = num_preds
+        if self.num_preds > 7:      # Currently only supports 7 step predictions, due to rollout configuration
+            self.num_preds = 7
 
         if predict_from_pixels:
             self.features = self.get_features(self.obs, reuse=False)
