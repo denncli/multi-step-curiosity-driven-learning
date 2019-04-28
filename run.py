@@ -191,7 +191,7 @@ def add_optimization_params(parser):
     parser.add_argument('--nepochs', type=int, default=3)
     parser.add_argument('--num_timesteps', type=int, default=int(1e7))
     parser.add_argument('--pred_discount', type=float, default=1.) # Scale factor for t2 loss
-    parser.add_argument('--num_preds', type=float, default=2) # Number of predictions
+    parser.add_argument('--num_preds', type=int, default=2) # Number of predictions
 
 
 def add_rollout_params(parser):

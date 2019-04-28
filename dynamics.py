@@ -109,7 +109,7 @@ class Dynamics(object):
             result = [getsess().run([self.loss2, self.next_pred, self.next_pred_flat],
                                    {self.obs: ob[sli(i)], self.last_ob: last_ob[sli(i)], self.features: result[i-1-p][1],
                                      self.extracted_features: result[i-1-p][2]}) for i in range(1, n_chunks)]
-            loss2 = [result[i][0] for i in range(n_chunks)]
+            loss2 = [result[i][0] for i in range(n_chunks-1-p)]
             avg_loss2 = np.sum(loss2, axis=0)/len(loss2)
             for q in range(p+1):
                 loss2.append(avg_loss2)
