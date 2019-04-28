@@ -2,7 +2,6 @@ import gym
 from gym.envs.registration import register
 
 from .joint_pong import DiscretizeActionWrapper, MultiDiscreteToUsual
-
 register(
     id='RoboschoolPong-v2',
     entry_point='.joint_pong:RoboschoolPongJoint',

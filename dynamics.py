@@ -105,7 +105,7 @@ class Dynamics(object):
         self.buff_preds = [result[i][2] for i in range(n_chunks)]
         loss_total = [result[i][0] for i in range(n_chunks)]
         discount = self.pred_discount
-        for p in range(self.num_preds):
+        for p in range(self.num_preds - 1):
             result = [getsess().run([self.loss2, self.next_pred, self.next_pred_flat],
                                    {self.obs: ob[sli(i)], self.last_ob: last_ob[sli(i)], self.features: result[i-1-p][1],
                                      self.extracted_features: result[i-1-p][2]}) for i in range(1, n_chunks)]
