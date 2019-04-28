@@ -40,7 +40,7 @@ class Rollout(object):
         # self.prev_acs = [None for _ in range(self.nlumps)]
         self.int_rew = np.zeros((nenvs,), np.float32)
 
-        self.recorder = Recorder(nenvs=self.nenvs, nlumps=self.nlumps) if record_rollouts else None
+       multi-step-curiosity-driven-learning/SuperMarioBros-Nes-Level1-1-000041.mp4 self.recorder = Recorder(nenvs=self.nenvs, nlumps=self.nlumps) if record_rollouts else None
         self.statlists = defaultdict(lambda: deque([], maxlen=100))
         self.stats = defaultdict(float)
         self.best_ext_ret = None
@@ -66,11 +66,13 @@ class Rollout(object):
         s = t % self.nsteps_per_seg
         for l in range(self.nlumps):
             obs, prevrews, news, infos = self.env_get(l)
+            
             # if t > 0:
             #     prev_feat = self.prev_feat[l]
             #     prev_acs = self.prev_acs[l]
             for info in infos:
-                epinfo = info.get('episode', {})
+                epinfo = info
+                # epinfo = info.get('episode', {})
                 mzepinfo = info.get('mz_episode', {})
                 retroepinfo = info.get('retro_episode', {})
                 epinfo.update(mzepinfo)
@@ -115,15 +117,21 @@ class Rollout(object):
         all_ep_infos = MPI.COMM_WORLD.allgather(self.ep_infos_new)
         all_ep_infos = sorted(sum(all_ep_infos, []), key=lambda x: x[0])
         
+        # print(all_ep_infos)
+
         if all_ep_infos:
             all_ep_infos = [i_[1] for i_ in all_ep_infos]  # remove the step_count
             keys_ = all_ep_infos[0].keys()
             all_ep_infos = {k: [i[k] for i in all_ep_infos] for k in keys_}
             
-            #self.statlists['eprew'].extend(all_ep_infos['r'])
-            #self.stats['eprew_recent'] = np.mean(all_ep_infos['r'])
-            #self.statlists['eplen'].extend(all_ep_infos['l'])
-            #self.stats['epcount'] += len(all_ep_infos['l'])
+            self.statlists['levelLo'].extend(all_ep_infos['LevelLo'])
+            self.statlists['levelHi'].extend(all_ep_infos['LevelHi'])
+            self.statlists['coins'].extend(all_ep_infos['coins'])
+            self.stats['lives'] = np.mean(all_ep_infos['lives'])
+            self.statlists['eprew'].extend(all_ep_infos['score'])
+            self.stats['eprew_recent'] = np.mean(all_ep_infos['score'])
+            self.statlists['eplen'].extend(all_ep_infos['time'])
+            self.stats['epcount'] += len(all_ep_infos['time'])
             #self.stats['tcount'] += sum(all_ep_infos['l'])
             
             if 'visited_rooms' in keys_:
@@ -148,7 +156,7 @@ class Rollout(object):
                     print("All visited levels")
                     print(self.all_visited_rooms)
 
-            current_max = np.max(all_ep_infos['levels'][0])
+            current_max = np.max(all_ep_infos['score'])
         else:
             current_max = None
         self.ep_infos_new = []
