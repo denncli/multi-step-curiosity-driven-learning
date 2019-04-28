@@ -114,6 +114,7 @@ class Dynamics(object):
             for q in range(p+1):
                 loss2.append(avg_loss2)
             loss_total = [loss_total[i] + (discount * loss2[i]) for i in range(n_chunks)]
+            discount = discount * self.pred_discount
         return np.concatenate(loss_total, 0)
 
 
