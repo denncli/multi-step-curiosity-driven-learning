@@ -3,7 +3,7 @@
 ## Multi-Step Curiosity Driven Learning ##
 #### [[Project Website]]() [[Demo Video]]()
 
-Ruchir Aggarwal*, Kushantha U. Attanayake*, Dennis Li*, <br/>Julio Soldevilla*, Poorani Ravindhiran<br/>
+Ruchir Aggarwal*, Kushantha U. Attanayake*, Dennis Li*, Julio Soldevilla*, Poorani Ravindhiran<br/>
 (&#42; alphabetical ordering, equal contribution)
 
 Computer Science and Engineering, University of Michigan<br/>
