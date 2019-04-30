@@ -1,14 +1,14 @@
 **Status:** Archive (code is provided as-is, no updates expected)
 
-## Large-Scale Study of Curiosity-Driven Learning ##
-#### [[Project Website]](https://pathak22.github.io/large-scale-curiosity/) [[Demo Video]](https://youtu.be/l1FqtAHfJLI)
+## Multi-Step Curiosity Driven Learning ##
+#### [[Project Website]]() [[Demo Video]]()
 
-[Yuri Burda*](https://sites.google.com/site/yburda/), [Harri Edwards*](https://github.com/harri-edwards/), [Deepak Pathak*](https://people.eecs.berkeley.edu/~pathak/), <br/>[Amos Storkey](http://homepages.inf.ed.ac.uk/amos/), [Trevor Darrell](https://people.eecs.berkeley.edu/~trevor/), [Alexei A. Efros](https://people.eecs.berkeley.edu/~efros/)<br/>
+Ruchir Aggarwal*, Kushantha U. Attanayake*, Dennis Li*, <br/>Julio Soldevilla*, Poorani Ravindhiran<br/>
 (&#42; alphabetical ordering, equal contribution)
 
-University of California, Berkeley<br/>
-OpenAI<br/>
-University of Edinburgh
+Computer Science and Engineering, University of Michigan<br/>
+Mathematics, University of Michigan<br/>
+Robotics, University of Michigan
 
 <a href="https://pathak22.github.io/large-scale-curiosity/">
 <img src="https://pathak22.github.io/large-scale-curiosity/resources/teaser.jpg" width="500">
