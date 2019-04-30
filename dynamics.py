@@ -6,17 +6,29 @@ from utils import small_convnet, flatten_two_dims, unflatten_first_dim, getsess,
 
 
 class Dynamics(object):
-    def __init__(self, auxiliary_task, predict_from_pixels, feat_dim=None, scope='dynamics'):
+    def __init__(self, auxiliary_task, predict_from_pixels, pred_discount, num_preds, feat_dim=None, scope='dynamics'):
         self.scope = scope
         self.auxiliary_task = auxiliary_task
         self.hidsize = self.auxiliary_task.hidsize
         self.feat_dim = feat_dim
         self.obs = self.auxiliary_task.obs
+        self.extracted_features = self.auxiliary_task.extracted_features
         self.last_ob = self.auxiliary_task.last_ob
         self.ac = self.auxiliary_task.ac
         self.ac_space = self.auxiliary_task.ac_space
         self.ob_mean = self.auxiliary_task.ob_mean
         self.ob_std = self.auxiliary_task.ob_std
+
+        self.buff_preds = None
+        self.first_pred = None
+        self.first_pred_flat = None
+        self.next_pred = None
+        self.next_pred_flat = None
+        self.pred_discount = pred_discount
+        self.num_preds = num_preds
+        if self.num_preds > 7:      # Currently only supports 7 step predictions, due to rollout configuration
+            self.num_preds = 7
+
         if predict_from_pixels:
             self.features = self.get_features(self.obs, reuse=False)
         else:
@@ -25,7 +37,8 @@ class Dynamics(object):
         self.out_features = self.auxiliary_task.next_features
 
         with tf.variable_scope(self.scope + "_loss"):
-            self.loss = self.get_loss()
+            self.loss1 = self.get_loss_t1()
+            self.loss2 = None
 
     def get_features(self, x, reuse):
         nl = tf.nn.leaky_relu
@@ -40,8 +53,11 @@ class Dynamics(object):
             x = unflatten_first_dim(x, sh)
         return x
 
-    def get_loss(self):
-        ac = tf.one_hot(self.ac, self.ac_space.n, axis=2)
+    def set_loss(self):
+        with tf.variable_scope(self.scope + "_loss"):
+            self.loss2 = self.get_loss_t2()
+
+    def get_loss(self, ac):
         sh = tf.shape(ac)
         ac = flatten_two_dims(ac)
 
@@ -50,19 +66,32 @@ class Dynamics(object):
 
         with tf.variable_scope(self.scope):
             x = flatten_two_dims(self.features)
-            x = tf.layers.dense(add_ac(x), self.hidsize, activation=tf.nn.leaky_relu)
+            x = tf.layers.dense(add_ac(x), self.hidsize, activation=tf.nn.leaky_relu, reuse=tf.AUTO_REUSE)
 
             def residual(x):
-                res = tf.layers.dense(add_ac(x), self.hidsize, activation=tf.nn.leaky_relu)
-                res = tf.layers.dense(add_ac(res), self.hidsize, activation=None)
+                res = tf.layers.dense(add_ac(x), self.hidsize, activation=tf.nn.leaky_relu, reuse=tf.AUTO_REUSE)
+                res = tf.layers.dense(add_ac(res), self.hidsize, activation=None, reuse=tf.AUTO_REUSE)
                 return x + res
 
             for _ in range(4):
                 x = residual(x)
             n_out_features = self.out_features.get_shape()[-1].value
-            x = tf.layers.dense(add_ac(x), n_out_features, activation=None)
+            x = tf.layers.dense(add_ac(x), n_out_features, activation=None, reuse=tf.AUTO_REUSE)
             x = unflatten_first_dim(x, sh)
-        return tf.reduce_mean((x - tf.stop_gradient(self.out_features)) ** 2, -1)
+            return x
+
+    def get_loss_t1(self):
+        ac = tf.one_hot(self.ac, self.ac_space.n, axis=2)
+        self.first_pred = self.get_loss(ac)
+        self.first_pred_flat = flatten_two_dims(self.first_pred)
+        return tf.reduce_mean((self.first_pred - tf.stop_gradient(self.out_features)) ** 2, -1)
+
+    def get_loss_t2(self):
+        ac = tf.one_hot(self.auxiliary_task.policy.a_samp_alt, self.ac_space.n, axis=2)
+        self.next_pred = self.get_loss(ac)
+        self.next_pred_flat = flatten_two_dims(self.next_pred)
+        return tf.reduce_mean((self.next_pred - tf.stop_gradient(self.out_features)) ** 2, -1)
+
 
     def calculate_loss(self, ob, last_ob, acs):
         n_chunks = 8
@@ -70,17 +99,33 @@ class Dynamics(object):
         chunk_size = n // n_chunks
         assert n % n_chunks == 0
         sli = lambda i: slice(i * chunk_size, (i + 1) * chunk_size)
-        return np.concatenate([getsess().run(self.loss,
-                                             {self.obs: ob[sli(i)], self.last_ob: last_ob[sli(i)],
-                                              self.ac: acs[sli(i)]}) for i in range(n_chunks)], 0)
+        result = [getsess().run([self.loss1, self.first_pred, self.first_pred_flat],
+                               {self.obs: ob[sli(i)], self.last_ob: last_ob[sli(i)],
+                               self.ac: acs[sli(i)]}) for i in range(n_chunks)]
+        self.buff_preds = [result[i][2] for i in range(n_chunks)]
+        loss_total = [result[i][0] for i in range(n_chunks)]
+        discount = self.pred_discount
+        for p in range(self.num_preds - 1):
+            result = [getsess().run([self.loss2, self.next_pred, self.next_pred_flat],
+                                   {self.obs: ob[sli(i)], self.last_ob: last_ob[sli(i)], self.features: result[i-1-p][1],
+                                     self.extracted_features: result[i-1-p][2]}) for i in range(1, n_chunks)]
+            loss2 = [result[i][0] for i in range(n_chunks-1-p)]
+            avg_loss2 = np.sum(loss2, axis=0)/len(loss2)
+            for q in range(p+1):
+                loss2.append(avg_loss2)
+            loss_total = [loss_total[i] + (discount * loss2[i]) for i in range(n_chunks)]
+            discount = discount * self.pred_discount
+        return np.concatenate(loss_total, 0)
 
 
 class UNet(Dynamics):
-    def __init__(self, auxiliary_task, predict_from_pixels, feat_dim=None, scope='pixel_dynamics'):
+    def __init__(self, auxiliary_task, predict_from_pixels, loss_scaler_t1, pred_discount, feat_dim=None, scope='pixel_dynamics'):
         assert isinstance(auxiliary_task, JustPixels)
         assert not predict_from_pixels, "predict from pixels must be False, it's set up to predict from features that are normalized pixels."
         super(UNet, self).__init__(auxiliary_task=auxiliary_task,
                                    predict_from_pixels=predict_from_pixels,
+                                   loss_scaler_t1=loss_scaler_t1,
+                                   pred_discount=pred_discount,
                                    feat_dim=feat_dim,
                                    scope=scope)
 

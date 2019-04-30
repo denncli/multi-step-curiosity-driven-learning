@@ -5,12 +5,14 @@ except:
     print("no OpenGL.GLU")
 import functools
 import os.path as osp
+import os
 from functools import partial
 
 import gym
 import tensorflow as tf
 from baselines import logger
-from baselines.bench import Monitor
+#from baselines.bench import Monitor
+from gym.wrappers import Monitor
 from baselines.common.atari_wrappers import NoopResetEnv, FrameStack
 from mpi4py import MPI
 
@@ -27,8 +29,8 @@ def start_experiment(**args):
     make_env = partial(make_env_all_params, add_monitor=True, args=args)
 
     trainer = Trainer(make_env=make_env,
-                      num_timesteps=args['num_timesteps'], hps=args,
-                      envs_per_process=args['envs_per_process'])
+                  num_timesteps=args['num_timesteps'], hps=args,
+                  envs_per_process=args['envs_per_process'])
     log, tf_sess = get_experiment_environment(**args)
     with log, tf_sess:
         logdir = logger.get_dir()
@@ -64,12 +66,18 @@ class Trainer(object):
                                                         features_shared_with_policy=False,
                                                         feat_dim=512,
                                                         layernormalize=hps['layernorm'])
-        # TODO: output = self.feature_extractor.get_features(tf.random(self.ob_space.shape, reuse=False)
-        # Todo: remake policy and feature extractor
+
+
         self.dynamics = Dynamics if hps['feat_learning'] != 'pix2pix' else UNet
         self.dynamics = self.dynamics(auxiliary_task=self.feature_extractor,
                                       predict_from_pixels=hps['dyn_from_pixels'],
+                                      pred_discount=hps['pred_discount'],
+                                      num_preds=hps['num_preds'],
                                       feat_dim=512)
+
+        ''' Setting dynamics object in policy for feature extraction'''
+        self.policy.set_dynamics(self.dynamics)
+        self.dynamics.set_loss()
 
         self.agent = PpoOptimizer(
             scope='ppo',
@@ -95,12 +103,12 @@ class Trainer(object):
 
         self.agent.to_report['aux'] = tf.reduce_mean(self.feature_extractor.loss)
         self.agent.total_loss += self.agent.to_report['aux']
-        self.agent.to_report['dyn_loss'] = tf.reduce_mean(self.dynamics.loss)
+        self.agent.to_report['dyn_loss'] = tf.reduce_mean(self.dynamics.loss1 + self.dynamics.loss2)
         self.agent.total_loss += self.agent.to_report['dyn_loss']
         self.agent.to_report['feat_var'] = tf.reduce_mean(tf.nn.moments(self.feature_extractor.features, [0, 1])[1])
 
     def _set_env_vars(self):
-        env = self.make_env(0, add_monitor=False)
+        env = self.make_env(0, add_monitor=True)
         self.ob_space, self.ac_space = env.observation_space, env.action_space
         self.ob_mean, self.ob_std = random_agent_ob_mean_std(env)
         del env
@@ -141,8 +149,11 @@ def make_env_all_params(rank, add_monitor, args):
         elif args["env"] == "hockey":
             env = make_robo_hockey()
 
-    if add_monitor:
-        env = Monitor(env, osp.join(logger.get_dir(), '%.2i' % rank))
+    if args["env_kind"] == 'atari' and  add_monitor:
+        #env = Monitor(env, osp.join(logger.get_dir(), '%.2i' % rank))
+        env = Monitor(env, os.path.join(os.getcwd(), 'test_video'), force=True, video_callable=lambda episode_id: episode_id%20 ==0)
+        #env = Monitor(env, os.path.join(os.getcwd(), 'test_video'),video_callable=lambda episode_id: True )#,force=True)
+        
     return env
 
 
@@ -163,12 +174,11 @@ def get_experiment_environment(**args):
 
 
 def add_environments_params(parser):
-    parser.add_argument('--env', help='environment ID', default='BreakoutNoFrameskip-v4',
+    parser.add_argument('--env', help='environment ID', default='SpaceInvadersNoFrameskip-v0',
                         type=str)
     parser.add_argument('--max-episode-steps', help='maximum number of timesteps for episode', default=4500, type=int)
-    parser.add_argument('--env_kind', type=str, default="atari")
+    parser.add_argument('--env_kind', type=str, default="mario")
     parser.add_argument('--noop_max', type=int, default=30)
-
 
 def add_optimization_params(parser):
     parser.add_argument('--lambda', type=float, default=0.95)
@@ -179,7 +189,9 @@ def add_optimization_params(parser):
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--ent_coeff', type=float, default=0.001)
     parser.add_argument('--nepochs', type=int, default=3)
-    parser.add_argument('--num_timesteps', type=int, default=int(1e8))
+    parser.add_argument('--num_timesteps', type=int, default=int(1e7))
+    parser.add_argument('--pred_discount', type=float, default=1.) # Scale factor for t2 loss
+    parser.add_argument('--num_preds', type=int, default=2) # Number of predictions
 
 
 def add_rollout_params(parser):

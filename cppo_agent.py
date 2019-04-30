@@ -177,6 +177,7 @@ class PpoOptimizer(object):
             (self.ph_oldnlp, resh(self.rollout.buf_nlps)),
             (self.stochpol.ph_ob, resh(self.rollout.buf_obs)),
             (self.ph_ret, resh(self.buf_rets)),
+            #(self.stochpol.extracted_features, self.dynamics.buff_preds),
             (self.ph_adv, resh(self.buf_advs)),
         ]
         ph_buf.extend([
@@ -192,6 +193,7 @@ class PpoOptimizer(object):
                 mbenvinds = envinds[start:end]
                 fd = {ph: buf[mbenvinds] for (ph, buf) in ph_buf}
                 fd.update({self.ph_lr: self.lr, self.ph_cliprange: self.cliprange})
+                fd[self.stochpol.extracted_features] = self.dynamics.buff_preds[start // envsperbatch]
                 mblossvals.append(getsess().run(self._losses + (self._train,), fd)[:-1])
 
         mblossvals = [mblossvals[0]]

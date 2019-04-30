@@ -13,6 +13,14 @@ class CnnPolicy(object):
         self.nl = nl
         self.ob_mean = ob_mean
         self.ob_std = ob_std
+
+        ''' Defining variables that'll be initialized with dynamics '''
+        self.dynamics = None
+        self.a_samp = None
+        self.entropy = None
+        self.nlp_samp = None
+        self.a_samp_alt = None
+
         with tf.variable_scope(scope):
             self.ob_space = ob_space
             self.ac_space = ac_space
@@ -24,24 +32,48 @@ class CnnPolicy(object):
             self.hidsize = hidsize
             self.feat_dim = feat_dim
             self.scope = scope
-            pdparamsize = self.ac_pdtype.param_shape()[0]
+            self.pdparamsize = self.ac_pdtype.param_shape()[0]
 
             sh = tf.shape(self.ph_ob)
             x = flatten_two_dims(self.ph_ob)
             self.flat_features = self.get_features(x, reuse=False)
             self.features = unflatten_first_dim(self.flat_features, sh)
 
+            self.extracted_features = tf.placeholder(dtype=tf.float32,
+                                                     shape=self.flat_features.shape)
+
             with tf.variable_scope(scope, reuse=False):
                 x = fc(self.flat_features, units=hidsize, activation=activ)
                 x = fc(x, units=hidsize, activation=activ)
-                pdparam = fc(x, name='pd', units=pdparamsize, activation=None)
                 vpred = fc(x, name='value_function_output', units=1, activation=None)
-            pdparam = unflatten_first_dim(pdparam, sh)
+                y = fc(vpred,  units=hidsize, activation=activ)
+                y = fc(y, units=hidsize, activation=activ)
             self.vpred = unflatten_first_dim(vpred, sh)[:, :, 0]
+
+    def set_dynamics(self, dynamics):
+        self.dynamics = dynamics
+        with tf.variable_scope(self.scope):
+            shaped = tf.shape(self.ph_ob)
+            flat = flatten_two_dims(self.ph_ob)
+            features = self.dynamics.auxiliary_task.get_features(flat, reuse=tf.AUTO_REUSE)
+            pdparam = self.get_pdparam(features, False)
+            pdparam = unflatten_first_dim(pdparam, shaped)
             self.pd = pd = self.ac_pdtype.pdfromflat(pdparam)
             self.a_samp = pd.sample()
             self.entropy = pd.entropy()
             self.nlp_samp = pd.neglogp(self.a_samp)
+
+            '''Alternate ac for forward dynamics'''
+            pdparam_alt = self.get_pdparam(self.extracted_features, True)
+            pdparam_alt = unflatten_first_dim(pdparam_alt, shaped)
+            self.a_samp_alt = self.ac_pdtype.pdfromflat(pdparam_alt).sample()
+
+    def get_pdparam(self, features, reuse):
+        with tf.variable_scope(self.scope, reuse=False):
+            x = fc(features, units=self.hidsize, activation=activ, reuse=True)
+            x = fc(x, units=self.hidsize, activation=activ, reuse=True)
+            pdparam = fc(x, name='pd', units=self.pdparamsize, activation=None, reuse=reuse)
+        return pdparam
 
     def get_features(self, x, reuse):
         x_has_timesteps = (x.get_shape().ndims == 5)

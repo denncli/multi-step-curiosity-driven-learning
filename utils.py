@@ -103,7 +103,6 @@ def random_agent_ob_mean_std(env, nsteps=10000):
     MPI.COMM_WORLD.Bcast(std, root=0)
     return mean, std
 
-
 def layernorm(x):
     m, v = tf.nn.moments(x, -1, keep_dims=True)
     return (x - m) / (tf.sqrt(v) + 1e-8)
