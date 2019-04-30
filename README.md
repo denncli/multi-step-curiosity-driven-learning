@@ -1,7 +1,7 @@
 **Status:** Archive (code is provided as-is, no updates expected)
 
 ## Multi-Step Curiosity Driven Learning ##
-#### [[Project Website]]() [[Demo Video]]()
+#### [[Project Website]](https://aggarwalruchir.github.io/) [[Demo Video]]()
 
 Ruchir Aggarwal*, Kushantha U. Attanayake*, Dennis Li*, Julio Soldevilla*, Poorani Ravindhiran<br/>
 (&#42; alphabetical ordering, equal contribution)
@@ -14,7 +14,7 @@ Robotics, University of Michigan
 <img src="" width="500">
 </img></a>
 
-This is a TensorFlow based implementation for our [paper on multi-step curiosity driven learning]() across 4 environments. 
+This is a TensorFlow based implementation for our [paper on multi-step curiosity driven learning](https://aggarwalruchir.github.io/EECS598_012_Final_Report.pdf) across 4 environments. 
 Curiosity is a type of intrinsic reward function which uses prediction error as reward signal. In this paper, we extend the 
 work done by [Deepak Pathak et al.](https://pathak22.github.io) and investigate the effects of generating multiple step predictions into the future, and 
 using all predictions in our definition of curiosity. We perform experiments with different weight combinations for multiple 
