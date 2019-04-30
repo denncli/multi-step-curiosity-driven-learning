@@ -10,30 +10,23 @@ Computer Science and Engineering, University of Michigan<br/>
 Mathematics, University of Michigan<br/>
 Robotics, University of Michigan
 
-<a href="https://pathak22.github.io/large-scale-curiosity/">
-<img src="https://pathak22.github.io/large-scale-curiosity/resources/teaser.jpg" width="500">
+<a href="https://aggarwalruchir.github.io/">
+<img src="" width="500">
 </img></a>
 
-This is a TensorFlow based implementation for our [paper on large-scale study of curiosity-driven learning](https://pathak22.github.io/large-scale-curiosity/) across
-54 environments. Curiosity is a type of intrinsic reward function which uses prediction error as reward signal. In this paper, We perform the first large-scale study of purely curiosity-driven learning, i.e. without any extrinsic rewards, across 54 standard benchmark environments. We further investigate the effect of using different feature spaces for computing prediction error and show that random features are sufficient for many popular RL game benchmarks, but learned features appear to generalize better (e.g. to novel game levels in Super Mario Bros.). If you find this work useful in your research, please cite:
-
-    @inproceedings{largeScaleCuriosity2018,
-        Author = {Burda, Yuri and Edwards, Harri and
-                  Pathak, Deepak and Storkey, Amos and
-                  Darrell, Trevor and Efros, Alexei A.},
-        Title = {Large-Scale Study of Curiosity-Driven Learning},
-        Booktitle = {arXiv:1808.04355},
-        Year = {2018}
-    }
+This is a TensorFlow based implementation for our [paper on multi-step curiosity driven learning]() across 4 environments. 
+Curiosity is a type of intrinsic reward function which uses prediction error as reward signal. In this paper, we extend the 
+work done by [Deepak Pathak et al.](https://pathak22.github.io) and investigate the effects of generating multiple step predictions into the future, and 
+using all predictions in our definition of curiosity. We perform experiments with different weight combinations for multiple 
+step predictions and present our results. We restrict ourselves to 4 environments due to limited resources and extensive 
+training time for each environment.
 
 ### Installation and Usage
-The following command should train a pure exploration agent on Breakout with default experiment parameters.
+The following command should train a pure exploration agent on Mario with default experiment parameters.
 ```bash
 python run.py
 ```
 To use more than one gpu/machine, use MPI (e.g. `mpiexec -n 8 python run.py` should use 1024 parallel environments to collect experience instead of the default 128 on an 8 gpu machine). 
 
 ### Other helpful pointers
-- [Paper](https://pathak22.github.io/large-scale-curiosity/resources/largeScaleCuriosity2018.pdf)
-- [Project Website](https://pathak22.github.io/large-scale-curiosity/)
-- [Demo Video](https://youtu.be/l1FqtAHfJLI)
+- [Original Paper](https://pathak22.github.io/large-scale-curiosity/resources/largeScaleCuriosity2018.pdf)
